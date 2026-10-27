@@ -7,7 +7,8 @@
       "location_id": "LOC-000001",
       "calculated_on_hand": 72,
       "blocked": 0,
-      "safety_stock": 7
+      "safety_stock": 7,
+      "channel_buffer": 4
     }
   ],
   "reservations": [

@@ -18,7 +18,7 @@
   {
     "case_id": "ANOM-003",
     "issue_type": "BLOCKED_STOCK_FULFILLMENT",
-    "description": "An order allocation attempts to use blocked inventory.",
+    "description": "An order allocation exceeds eligible stock because inventory is blocked.",
     "fixture": "data\\ground_truth\\fixtures\\anom-003.json",
     "expected_detection": true,
     "expected_decision": "Reject allocation and select eligible stock"

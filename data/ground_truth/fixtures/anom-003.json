@@ -22,9 +22,11 @@
       "order_line_id": "LINE-00000001-01",
       "sku_id": "SKU-001393",
       "location_id": "LOC-000064",
-      "quantity": 2
+      "quantity": 76
     }
   ],
+  "eligible_stock_before_allocation": 75,
+  "blocked_quantity": 1,
   "expected_detection": true,
   "expected_decision": "Reject allocation and select eligible stock"
 }
