@@ -46,8 +46,6 @@ def check_foreign_keys(
     for _, row in child.iterrows():
         value = row[child_fk]
 
-        # Optional references, such as a root location's parent,
-        # may be blank. All required references remain mandatory.
         if pd.isna(value):
             if nullable:
                 continue
@@ -96,21 +94,87 @@ def validate_inventory_reconciliation(reconciliation):
     return issues
 
 
-def validate_reservation_availability(reservations, inventory):
-    """Flag active reservations that exceed policy-available stock."""
+def validate_reservation_availability(
+    reservations,
+    inventory,
+    as_of="2026-10-28T12:00:00Z",
+):
+    """Flag active reservations exceeding policy-available inventory.
+
+    For backward compatibility, expires_at is optional. When supplied,
+    expired reservations are excluded. Inventory availability deducts
+    blocked stock, safety stock, and channel buffer when those columns
+    are available.
+    """
     issues = []
 
-    active = reservations.loc[
-        reservations["status"] == "ACTIVE"
-    ]
+    required_reservation_columns = {
+        "sku_id",
+        "location_id",
+        "quantity",
+        "status",
+    }
+    missing = required_reservation_columns - set(reservations.columns)
+
+    if missing:
+        raise ValueError(
+            f"Reservations missing columns: {sorted(missing)}"
+        )
+
+    required_inventory_columns = {
+        "sku_id",
+        "location_id",
+        "calculated_on_hand",
+    }
+    missing = required_inventory_columns - set(inventory.columns)
+
+    if missing:
+        raise ValueError(
+            f"Inventory missing columns: {sorted(missing)}"
+        )
+
+    reservation_data = reservations.copy()
+
+    reservation_data["quantity"] = pd.to_numeric(
+        reservation_data["quantity"],
+        errors="raise",
+    )
+
+    if (
+        reservation_data["quantity"].isna().any()
+        or (reservation_data["quantity"] < 0).any()
+    ):
+        raise ValueError(
+            "Reservation quantities must be non-negative."
+        )
+
+    active_mask = reservation_data["status"].eq("ACTIVE")
+
+    # Older tests or input datasets may omit expires_at.
+    # If it exists, only reservations that have not expired are active.
+    if "expires_at" in reservation_data.columns:
+        reservation_data["expires_at"] = pd.to_datetime(
+            reservation_data["expires_at"],
+            utc=True,
+            errors="coerce",
+        )
+        timestamp = pd.to_datetime(as_of, utc=True)
+
+        active_mask &= reservation_data["expires_at"].gt(timestamp)
+
+    active = reservation_data.loc[active_mask].copy()
 
     totals = (
         active.groupby(
-            ["sku_id", "location_id"], as_index=False
+            ["sku_id", "location_id"],
+            as_index=False,
         )["quantity"]
         .sum()
         .rename(columns={"quantity": "reserved_quantity"})
     )
+
+    if totals.empty:
+        return issues
 
     joined = totals.merge(
         inventory,
@@ -122,7 +186,7 @@ def validate_reservation_availability(reservations, inventory):
     for _, row in joined.iterrows():
         record_id = f"{row['sku_id']}|{row['location_id']}"
 
-        if pd.isna(row.get("calculated_on_hand")):
+        if pd.isna(row["calculated_on_hand"]):
             issues.append({
                 "issue_type": "RESERVATION_UNKNOWN_INVENTORY",
                 "entity": "Reservation",
@@ -131,14 +195,59 @@ def validate_reservation_availability(reservations, inventory):
             })
             continue
 
-        available = (
-            row["calculated_on_hand"]
-            - row.get("blocked", 0)
-            - row.get("safety_stock", 0)
-            - row.get("channel_buffer", 0)
+        on_hand = pd.to_numeric(
+            pd.Series([row["calculated_on_hand"]]),
+            errors="coerce",
+        ).iloc[0]
+
+        if pd.isna(on_hand) or on_hand < 0:
+            issues.append({
+                "issue_type": "INVALID_INVENTORY_BALANCE",
+                "entity": "InventoryBalance",
+                "record_id": record_id,
+                "details": f"Invalid calculated_on_hand={row['calculated_on_hand']}",
+            })
+            continue
+
+        blocked = (
+            pd.to_numeric(
+                pd.Series([row["blocked"]]), errors="coerce"
+            ).iloc[0]
+            if "blocked" in joined.columns
+            else 0
+        )
+        safety_stock = (
+            pd.to_numeric(
+                pd.Series([row["safety_stock"]]), errors="coerce"
+            ).iloc[0]
+            if "safety_stock" in joined.columns
+            else 0
+        )
+        channel_buffer = (
+            pd.to_numeric(
+                pd.Series([row["channel_buffer"]]), errors="coerce"
+            ).iloc[0]
+            if "channel_buffer" in joined.columns
+            else 0
         )
 
-        available = max(0, available)
+        deductions = [blocked, safety_stock, channel_buffer]
+        if any(pd.isna(value) or value < 0 for value in deductions):
+            issues.append({
+                "issue_type": "INVALID_INVENTORY_POLICY_QUANTITY",
+                "entity": "InventoryBalance",
+                "record_id": record_id,
+                "details": (
+                    "Blocked stock, safety stock, and channel buffer "
+                    "must be non-negative numeric values"
+                ),
+            })
+            continue
+
+        available = max(
+            0,
+            on_hand - blocked - safety_stock - channel_buffer,
+        )
 
         if row["reserved_quantity"] > available:
             issues.append({
@@ -155,35 +264,139 @@ def validate_reservation_availability(reservations, inventory):
 
 
 def validate_blocked_stock_fulfillment(allocations, balances):
-    """Flag allocations that attempt to use blocked inventory."""
-    issues = []
+    """Flag allocations that exceed eligible, unblocked stock.
+
+    If on_hand is provided, eligible stock is on_hand minus blocked.
+    For older/minimal inputs without on_hand, a positive allocation
+    against a balance with blocked stock is conservatively flagged.
+    """
+    required_allocation_columns = {
+        "allocation_id",
+        "sku_id",
+        "location_id",
+        "quantity",
+    }
+    missing = required_allocation_columns - set(allocations.columns)
+
+    if missing:
+        raise ValueError(
+            f"Allocations missing columns: {sorted(missing)}"
+        )
+
+    required_balance_columns = {
+        "sku_id",
+        "location_id",
+        "blocked",
+    }
+    missing = required_balance_columns - set(balances.columns)
+
+    if missing:
+        raise ValueError(
+            f"Balances missing columns: {sorted(missing)}"
+        )
+
+    balance_columns = ["sku_id", "location_id", "blocked"]
+    has_on_hand = "on_hand" in balances.columns
+
+    if has_on_hand:
+        balance_columns.append("on_hand")
 
     joined = allocations.merge(
-        balances[["sku_id", "location_id", "blocked"]],
+        balances[balance_columns],
         on=["sku_id", "location_id"],
         how="left",
         validate="many_to_one",
+        indicator=True,
     )
+
+    issues = []
 
     for _, row in joined.iterrows():
         allocation_id = str(row["allocation_id"])
 
-        if pd.isna(row["blocked"]):
+        if row["_merge"] == "left_only":
             issues.append({
                 "issue_type": "ALLOCATION_UNKNOWN_INVENTORY",
                 "entity": "Allocation",
                 "record_id": allocation_id,
                 "details": "No matching inventory balance",
             })
+            continue
 
-        elif row["blocked"] > 0 and row["quantity"] > 0:
+        blocked = pd.to_numeric(
+            pd.Series([row["blocked"]]), errors="coerce"
+        ).iloc[0]
+        quantity = pd.to_numeric(
+            pd.Series([row["quantity"]]), errors="coerce"
+        ).iloc[0]
+
+        if (
+            pd.isna(blocked)
+            or pd.isna(quantity)
+            or blocked < 0
+            or quantity < 0
+        ):
+            issues.append({
+                "issue_type": "INVALID_ALLOCATION_QUANTITY",
+                "entity": "Allocation",
+                "record_id": allocation_id,
+                "details": (
+                    "Blocked and allocation quantities must be "
+                    "valid non-negative numbers"
+                ),
+            })
+            continue
+
+        if has_on_hand:
+            on_hand = pd.to_numeric(
+                pd.Series([row["on_hand"]]), errors="coerce"
+            ).iloc[0]
+
+            if pd.isna(on_hand) or on_hand < 0:
+                issues.append({
+                    "issue_type": "INVALID_ALLOCATION_QUANTITY",
+                    "entity": "Allocation",
+                    "record_id": allocation_id,
+                    "details": "On-hand quantity must be non-negative",
+                })
+                continue
+
+            if blocked > on_hand:
+                issues.append({
+                    "issue_type": "INVALID_BLOCKED_BALANCE",
+                    "entity": "InventoryBalance",
+                    "record_id": (
+                        f"{row['sku_id']}|{row['location_id']}"
+                    ),
+                    "details": (
+                        f"Blocked={blocked} exceeds on_hand={on_hand}"
+                    ),
+                })
+                continue
+
+            eligible_stock = on_hand - blocked
+
+            if quantity > eligible_stock:
+                issues.append({
+                    "issue_type": "BLOCKED_STOCK_FULFILLMENT",
+                    "entity": "Allocation",
+                    "record_id": allocation_id,
+                    "details": (
+                        f"Allocation={quantity}; "
+                        f"eligible stock={eligible_stock}; "
+                        f"on_hand={on_hand}; blocked={blocked}"
+                    ),
+                })
+        elif blocked > 0 and quantity > 0:
+            # Without on_hand, we cannot determine the exact eligible
+            # quantity, so flag this as a conservative potential issue.
             issues.append({
                 "issue_type": "BLOCKED_STOCK_FULFILLMENT",
                 "entity": "Allocation",
                 "record_id": allocation_id,
                 "details": (
-                    f"Allocation quantity={row['quantity']}; "
-                    f"blocked quantity at location={row['blocked']}"
+                    f"Allocation={quantity} against inventory with "
+                    f"blocked={blocked}; on_hand was not provided"
                 ),
             })
 
@@ -231,5 +444,8 @@ def write_issues(issues, path):
     columns = ["issue_type", "entity", "record_id", "details"]
 
     pd.DataFrame(
-        issues, columns=columns
+        issues,
+        columns=columns,
     ).to_csv(path, index=False)
+
+
