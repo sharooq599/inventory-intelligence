@@ -1,0 +1,78 @@
+{
+  "case_id": "ANOM-001",
+  "issue_type": "BALANCE_RECONCILIATION_MISMATCH",
+  "balances": [
+    {
+      "balance_id": "BAL-SKU-000001-LOC-000001",
+      "sku_id": "SKU-000001",
+      "location_id": "LOC-000001",
+      "opening_on_hand": 59,
+      "recorded_on_hand": 72,
+      "on_hand": 72,
+      "reserved": 0,
+      "blocked": 0,
+      "safety_stock": 7,
+      "channel_buffer": 4,
+      "as_of": "2026-10-29T00:00:00Z"
+    }
+  ],
+  "movements": [
+    {
+      "movement_id": "MOV-2026-00171130",
+      "sku_id": "SKU-000001",
+      "location_id": "LOC-000001",
+      "movement_type": "RECEIPT",
+      "quantity": 3,
+      "event_time": "2026-10-08T08:29:00Z",
+      "reference_id": "EVT-00171130",
+      "transfer_id": NaN,
+      "status": "POSTED"
+    },
+    {
+      "movement_id": "MOV-2026-00535699",
+      "sku_id": "SKU-000001",
+      "location_id": "LOC-000001",
+      "movement_type": "ADJUSTMENT",
+      "quantity": 2,
+      "event_time": "2026-10-01T01:19:00Z",
+      "reference_id": "EVT-00535699",
+      "transfer_id": NaN,
+      "status": "POSTED"
+    },
+    {
+      "movement_id": "MOV-2026-00558420",
+      "sku_id": "SKU-000001",
+      "location_id": "LOC-000001",
+      "movement_type": "RECEIPT",
+      "quantity": 4,
+      "event_time": "2026-10-02T15:11:00Z",
+      "reference_id": "EVT-00558420",
+      "transfer_id": NaN,
+      "status": "POSTED"
+    },
+    {
+      "movement_id": "MOV-2026-00888779",
+      "sku_id": "SKU-000001",
+      "location_id": "LOC-000001",
+      "movement_type": "ADJUSTMENT",
+      "quantity": 4,
+      "event_time": "2026-10-16T09:19:00Z",
+      "reference_id": "EVT-00888779",
+      "transfer_id": NaN,
+      "status": "POSTED"
+    },
+    {
+      "movement_id": "MOV-2026-00972561",
+      "sku_id": "SKU-000001",
+      "location_id": "LOC-000001",
+      "movement_type": "TRANSFER_OUT",
+      "quantity": 1,
+      "event_time": "2026-10-02T21:25:00Z",
+      "reference_id": "TRF-2026-00088090",
+      "transfer_id": "TRF-2026-00088090",
+      "status": "POSTED"
+    }
+  ],
+  "expected_detection": true,
+  "expected_decision": "Investigate ledger and balance discrepancy"
+}

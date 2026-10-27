@@ -1,0 +1,5 @@
+case_id,issue_type,description,fixture,expected_detection,expected_decision
+ANOM-001,BALANCE_RECONCILIATION_MISMATCH,Recorded balance differs from movement-derived balance.,data\ground_truth\fixtures\anom-001.json,True,Investigate ledger and balance discrepancy
+ANOM-002,RESERVATION_EXCEEDS_AVAILABLE,Active reservation exceeds policy-available stock.,data\ground_truth\fixtures\anom-002.json,True,Reject or partially allocate reservation
+ANOM-003,BLOCKED_STOCK_FULFILLMENT,An order allocation attempts to use blocked inventory.,data\ground_truth\fixtures\anom-003.json,True,Reject allocation and select eligible stock
+ANOM-004,TRANSFER_COUNTED_AT_BOTH_ENDS,Destination counts stock before transfer receipt.,data\ground_truth\fixtures\anom-004.json,True,Keep stock in transit until destination receipt

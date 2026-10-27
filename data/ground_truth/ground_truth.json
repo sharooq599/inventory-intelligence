@@ -1,0 +1,34 @@
+[
+  {
+    "case_id": "ANOM-001",
+    "issue_type": "BALANCE_RECONCILIATION_MISMATCH",
+    "description": "Recorded balance differs from movement-derived balance.",
+    "fixture": "data\\ground_truth\\fixtures\\anom-001.json",
+    "expected_detection": true,
+    "expected_decision": "Investigate ledger and balance discrepancy"
+  },
+  {
+    "case_id": "ANOM-002",
+    "issue_type": "RESERVATION_EXCEEDS_AVAILABLE",
+    "description": "Active reservation exceeds policy-available stock.",
+    "fixture": "data\\ground_truth\\fixtures\\anom-002.json",
+    "expected_detection": true,
+    "expected_decision": "Reject or partially allocate reservation"
+  },
+  {
+    "case_id": "ANOM-003",
+    "issue_type": "BLOCKED_STOCK_FULFILLMENT",
+    "description": "An order allocation attempts to use blocked inventory.",
+    "fixture": "data\\ground_truth\\fixtures\\anom-003.json",
+    "expected_detection": true,
+    "expected_decision": "Reject allocation and select eligible stock"
+  },
+  {
+    "case_id": "ANOM-004",
+    "issue_type": "TRANSFER_COUNTED_AT_BOTH_ENDS",
+    "description": "Destination counts stock before transfer receipt.",
+    "fixture": "data\\ground_truth\\fixtures\\anom-004.json",
+    "expected_detection": true,
+    "expected_decision": "Keep stock in transit until destination receipt"
+  }
+]

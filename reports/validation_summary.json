@@ -1,0 +1,35 @@
+{
+  "dataset": {
+    "products": 1667,
+    "skus": 5000,
+    "locations": 100,
+    "inventory_balances": 500000,
+    "inventory_movements": 1000000,
+    "orders": 50000,
+    "order_lines": 50000,
+    "reservations": 50000,
+    "shipments": 50000,
+    "replenishment_rules": 5000
+  },
+  "total_issues": 0,
+  "baseline_reconciliation_mismatches": 0,
+  "issue_counts_by_type": {},
+  "status": "PASS",
+  "checks": [
+    "primary keys",
+    "foreign keys (nullable parent location supported)",
+    "movement enums, quantities, and timestamps",
+    "order status, channel, and timestamps",
+    "location hierarchy",
+    "order-line quantities",
+    "order lifecycle",
+    "reservation lifecycle",
+    "shipment lifecycle",
+    "transfer-pair consistency",
+    "inventory reconciliation"
+  ],
+  "limitations": [
+    "Premature transfer counting requires separate transfer dispatch and receipt lifecycle data.",
+    "This script does not yet validate every business rule or calculate ATP for every inventory row."
+  ]
+}

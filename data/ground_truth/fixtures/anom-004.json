@@ -1,0 +1,18 @@
+{
+  "case_id": "ANOM-004",
+  "issue_type": "TRANSFER_COUNTED_AT_BOTH_ENDS",
+  "transfers": [
+    {
+      "transfer_id": "ANOM-TRANSFER-0001",
+      "source_location_id": "LOC-000001",
+      "destination_location_id": "LOC-000100",
+      "sku_id": "SKU-000001",
+      "quantity": 5,
+      "source_counted": true,
+      "destination_counted": true,
+      "received": false
+    }
+  ],
+  "expected_detection": true,
+  "expected_decision": "Keep stock in transit until destination receipt"
+}

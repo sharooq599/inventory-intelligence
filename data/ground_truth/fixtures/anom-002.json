@@ -1,0 +1,27 @@
+{
+  "case_id": "ANOM-002",
+  "issue_type": "RESERVATION_EXCEEDS_AVAILABLE",
+  "inventory": [
+    {
+      "sku_id": "SKU-000001",
+      "location_id": "LOC-000001",
+      "calculated_on_hand": 72,
+      "blocked": 0,
+      "safety_stock": 7
+    }
+  ],
+  "reservations": [
+    {
+      "reservation_id": "ANOM-RES-SKU-000001-LOC-000001",
+      "sku_id": "SKU-000001",
+      "location_id": "LOC-000001",
+      "quantity": 71,
+      "status": "ACTIVE",
+      "expires_at": "2026-12-31T23:59:59Z"
+    }
+  ],
+  "policy_available_before_test_reservation": 61,
+  "existing_reservation_count_for_pair": 0,
+  "expected_detection": true,
+  "expected_decision": "Reject or partially allocate reservation"
+}

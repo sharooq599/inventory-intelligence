@@ -1,0 +1,30 @@
+{
+  "case_id": "ANOM-003",
+  "issue_type": "BLOCKED_STOCK_FULFILLMENT",
+  "balances": [
+    {
+      "balance_id": "BAL-SKU-001393-LOC-000064",
+      "sku_id": "SKU-001393",
+      "location_id": "LOC-000064",
+      "opening_on_hand": 71,
+      "recorded_on_hand": 76,
+      "on_hand": 76,
+      "reserved": 0,
+      "blocked": 1,
+      "safety_stock": 2,
+      "channel_buffer": 0,
+      "as_of": "2026-10-29T00:00:00Z"
+    }
+  ],
+  "allocations": [
+    {
+      "allocation_id": "ANOM-ALLOC-0001",
+      "order_line_id": "LINE-00000001-01",
+      "sku_id": "SKU-001393",
+      "location_id": "LOC-000064",
+      "quantity": 2
+    }
+  ],
+  "expected_detection": true,
+  "expected_decision": "Reject allocation and select eligible stock"
+}
